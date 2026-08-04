@@ -27,12 +27,14 @@ const NETWORKS = {
   }
 };
 
+const OFFICIAL_NFT_CONTRACT = '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627';
+
 const DEFAULT_CONFIG = {
   refTarget: '0x22f6e173ee638eac5ef235a750990e049b9cc62a',
   refContract: '0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c',
   refMethod: 'registerWithReferral(address)',
   refInputParam: '',
-  nftContract: '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627',
+  nftContract: OFFICIAL_NFT_CONTRACT,
   nftMethod: 'mintPioneer()',
   nftValue: '0',
   checkinContract: '0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c',
@@ -107,10 +109,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.balancePollTimer) clearInterval(state.balancePollTimer);
   state.balancePollTimer = setInterval(refreshAllBalances, 5000);
 
-  addLog('SYSTEM', 'Direct NFT Minter for Pioneer, Builder, and OG NFTs initialized.', 'info');
+  addLog('SYSTEM', `Target NFT Contract enforced: ${OFFICIAL_NFT_CONTRACT}`, 'info');
 });
 
-// Load Data from LocalStorage
+// Load Data from LocalStorage with Auto Contract Address Migration
 function loadStoredData() {
   try {
     const savedMnemonic = localStorage.getItem('opbnb_mnemonic');
@@ -120,7 +122,15 @@ function loadStoredData() {
     if (savedWallets) state.wallets = JSON.parse(savedWallets);
 
     const savedConfig = localStorage.getItem('opbnb_config');
-    if (savedConfig) state.config = { ...DEFAULT_CONFIG, ...JSON.parse(savedConfig) };
+    if (savedConfig) {
+      state.config = { ...DEFAULT_CONFIG, ...JSON.parse(savedConfig) };
+    }
+
+    // Auto-migrate legacy NFT Contract address saved in localStorage
+    if (!state.config.nftContract || state.config.nftContract.toLowerCase() === '0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c') {
+      state.config.nftContract = OFFICIAL_NFT_CONTRACT;
+      localStorage.setItem('opbnb_config', JSON.stringify(state.config));
+    }
 
     const savedTxCount = localStorage.getItem('opbnb_tx_count');
     if (savedTxCount) state.completedTxCount = parseInt(savedTxCount, 10);
@@ -458,26 +468,32 @@ async function connectRabbyWallet() {
   }
 }
 
-// Mint NFT directly using Connected Browser Wallet (Rabby Wallet / MetaMask)
+// Mint NFT directly using Connected Browser Wallet (Targeting 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627 with explicit Gas Limit)
 async function mintRabbyNFT(methodSig, nftName) {
   if (!state.browserSigner) {
     await connectRabbyWallet();
     if (!state.browserSigner) return;
   }
 
-  const contractAddr = state.config.nftContract.trim() || '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627';
+  // ENFORCE REAL NFT CONTRACT ADDRESS
+  const contractAddr = OFFICIAL_NFT_CONTRACT;
+  state.config.nftContract = OFFICIAL_NFT_CONTRACT;
+  saveState();
+
   const currentNet = NETWORKS[state.config.selectedNetwork] || NETWORKS.mainnet;
 
   try {
-    showToast(`Broadcasting ${nftName} Mint (${methodSig})...`, 'info');
+    showToast(`Broadcasting ${nftName} Mint (${methodSig}) to ${shortenAddress(contractAddr)}...`, 'info');
 
     const iface = new ethers.Interface([`function ${methodSig}`]);
     const funcName = methodSig.split('(')[0];
     const calldata = iface.encodeFunctionData(funcName, []);
 
+    // Explicit gasLimit (300,000 gas) prevents estimateGas revert blocks!
     const tx = await state.browserSigner.sendTransaction({
       to: contractAddr,
-      data: calldata
+      data: calldata,
+      gasLimit: 300000n
     });
 
     showToast(`Transaction sent! Waiting confirmation...`, 'info');
@@ -493,7 +509,7 @@ async function mintRabbyNFT(methodSig, nftName) {
   } catch (err) {
     console.error(`Mint error for ${nftName}:`, err);
     showToast(`Mint failed: ${err.reason || err.message}`, 'error');
-    addLog('ERROR', `${nftName} Mint failed: ${err.message}`, 'error');
+    addLog('ERROR', `${nftName} Mint failed on ${shortenAddress(contractAddr)}: ${err.message}`, 'error');
   }
 }
 
@@ -923,7 +939,7 @@ function saveContractConfig() {
   state.config.refContract = document.getElementById('cfg-ref-contract').value.trim();
   state.config.refMethod = document.getElementById('cfg-ref-method').value.trim();
   state.config.refInputParam = document.getElementById('cfg-ref-input').value.trim();
-  state.config.nftContract = document.getElementById('cfg-nft-contract').value.trim();
+  state.config.nftContract = document.getElementById('cfg-nft-contract').value.trim() || OFFICIAL_NFT_CONTRACT;
   state.config.nftMethod = document.getElementById('cfg-nft-method').value.trim();
   state.config.nftValue = document.getElementById('cfg-nft-value').value.trim();
   state.config.checkinContract = document.getElementById('cfg-checkin-contract').value.trim();
@@ -1196,7 +1212,7 @@ async function executeReferralRegister(signer, network) {
 
 // Step 2 Execution: Specific NFT Mint Call (Target Contract: 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627)
 async function executeSpecificNFTMint(signer, methodSig, nftName, network) {
-  const contractAddr = state.config.nftContract.trim() || '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627';
+  const contractAddr = OFFICIAL_NFT_CONTRACT;
 
   try {
     const iface = new ethers.Interface([`function ${methodSig}`]);
@@ -1205,7 +1221,8 @@ async function executeSpecificNFTMint(signer, methodSig, nftName, network) {
 
     const tx = await signer.sendTransaction({
       to: contractAddr,
-      data: calldata
+      data: calldata,
+      gasLimit: 300000n
     });
 
     await tx.wait(1);
