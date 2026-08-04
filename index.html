@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <title>opBNB Network Web3 Utility Dashboard</title>
   <meta name="description" content="Client-side Web3 utility dashboard for opBNB Network account management and smart contract interaction. 100% local browser execution.">
-  <link rel="stylesheet" href="style.css?v=5.0">
+  <link rel="stylesheet" href="style.css?v=6.0">
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -305,7 +305,96 @@
         </div>
       </section>
 
+      <!-- TAB 2: ACCOUNTS HUB / WALLET MANAGER -->
+      <section id="tab-wallets" class="tab-pane">
+        <div class="panel">
+          <div class="panel-header flex-between">
+            <div>
+              <h3><i class="fa-solid fa-wallet"></i> HD Account Generator & Credential Manager</h3>
+              <p class="panel-sub">Generate, append, or restore accounts using a 12-Word Security Seed (BIP39 HD Standard).</p>
+            </div>
+            <div class="header-actions">
+              <button id="btn-export-keys" class="btn btn-secondary">
+                <i class="fa-solid fa-download"></i> Export Data (JSON/CSV)
+              </button>
+              <button id="btn-import-keys-trigger" class="btn btn-secondary">
+                <i class="fa-solid fa-upload"></i> Import Data
+              </button>
+              <input type="file" id="file-import-keys" accept=".json,.csv,.txt" style="display:none">
+              <button id="btn-clear-wallets" class="btn btn-danger-outline">
+                <i class="fa-solid fa-trash"></i> Clear All
+              </button>
+            </div>
+          </div>
 
+          <!-- Mnemonic / Security Seed Controls -->
+          <div class="seed-phrase-card">
+            <div class="seed-header flex-between mb-2">
+              <label for="mnemonic-input"><strong><i class="fa-solid fa-key text-purple"></i> Account Security Seed (12 Words)</strong></label>
+              <div class="seed-actions">
+                <button id="btn-new-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-rotate"></i> Generate Seed</button>
+                <button id="btn-toggle-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-eye"></i> Show/Hide</button>
+                <button id="btn-copy-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-copy"></i> Copy Seed</button>
+              </div>
+            </div>
+            <textarea id="mnemonic-input" class="custom-input font-mono seed-textarea" rows="2" placeholder="Enter 12-word security seed phrase..."></textarea>
+          </div>
+
+          <!-- Generation & Add Controls -->
+          <div class="wallet-gen-bar">
+            <div class="input-group">
+              <label for="gen-count">Number of Accounts</label>
+              <input type="number" id="gen-count" min="1" max="500" value="5" class="custom-input">
+            </div>
+
+            <div class="input-group checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="gen-smart-wallet" checked>
+                <span>Auto Derivation / Smart Account Mode</span>
+              </label>
+            </div>
+
+            <button id="btn-generate-wallets" class="btn btn-primary">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Derive / Restore Set
+            </button>
+
+            <button id="btn-add-more-wallets" class="btn btn-secondary">
+              <i class="fa-solid fa-plus"></i> + Add More Accounts
+            </button>
+
+            <button id="btn-add-manual-key" class="btn btn-secondary">
+              <i class="fa-solid fa-key"></i> + Add Hex String
+            </button>
+          </div>
+
+          <!-- Wallet List Table -->
+          <div class="table-responsive">
+            <table class="custom-table" id="wallet-table">
+              <thead>
+                <tr>
+                  <th width="40">#</th>
+                  <th>Path</th>
+                  <th>EOA Address</th>
+                  <th>Smart Address</th>
+                  <th>opBNB Balance</th>
+                  <th>Status</th>
+                  <th width="200">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="wallet-table-body">
+                <tr class="empty-row">
+                  <td colspan="7">
+                    <div class="empty-state">
+                      <i class="fa-solid fa-wallet-thin"></i>
+                      <p>No accounts derived yet. Enter a security seed and click "Derive / Restore Set" or "+ Add More Accounts" above.</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
       <!-- TAB: DIRECT NFT MINTER (RABBY / METAMASK POINT BYPASS) -->
       <section id="tab-direct-mint" class="tab-pane">
@@ -733,6 +822,6 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- JavaScript with Cache Buster -->
-  <script src="app.js?v=5.0"></script>
+  <script src="app.js?v=6.0"></script>
 </body>
 </html>
