@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.balancePollTimer) clearInterval(state.balancePollTimer);
   state.balancePollTimer = setInterval(refreshAllBalances, 5000);
 
-  addLog('SYSTEM', 'Robust Daily Check-in & Claim engine ready.', 'info');
+  addLog('SYSTEM', 'Smart Dynamic NFT Minting engine active.', 'info');
 });
 
 // Load Data from LocalStorage
@@ -891,7 +891,7 @@ async function startAutomationPipeline() {
         await executeReferralRegister(signer, currentNet);
       }
 
-      // Optional Module 2: NFT Mint
+      // Optional Module 2: Smart Dynamic NFT Mint
       if (enableMint && state.isExecuting) {
         appendFeedItem(feed, `➡️ Minting NFT on contract ${shortenAddress(state.config.nftContract)}...`, 'info');
         await executeNFTMint(signer, currentNet);
@@ -1057,34 +1057,66 @@ async function executeReferralRegister(signer, network) {
   }
 }
 
-// Step 2 Execution: NFT Mint Call
+// Step 2 Execution: Smart Dynamic NFT Mint Call with Auto Fallback Signatures
 async function executeNFTMint(signer, network) {
-  try {
-    const iface = new ethers.Interface([`function ${state.config.nftMethod}`]);
-    const calldata = iface.encodeFunctionData('mint', []);
-    const valueWei = ethers.parseEther(state.config.nftValue || '0');
+  const contractAddr = state.config.nftContract.trim();
+  const configuredMethod = state.config.nftMethod.trim();
+  const valueWei = ethers.parseEther(state.config.nftValue || '0');
 
-    const tx = await signer.sendTransaction({
-      to: state.config.nftContract,
-      data: calldata,
-      value: valueWei
-    });
+  const candidateSignatures = [
+    configuredMethod,
+    'mint()',
+    'mint(address)',
+    'safeMint(address)',
+    'mintNFT()',
+    'publicMint()',
+    'claim()'
+  ];
 
-    await tx.wait(1);
+  const methodList = [...new Set(candidateSignatures)];
 
-    state.completedTxCount++;
-    saveState();
-    updateUI();
+  for (let methodSig of methodList) {
+    try {
+      const iface = new ethers.Interface([`function ${methodSig}`]);
+      const funcName = methodSig.split('(')[0];
+      const funcObj = iface.getFunction(funcName);
 
-    const txHash = tx.hash;
-    addLog('TX', `NFT Minted! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
-    showToast('NFT Mint transaction broadcasted!', 'success');
-    return true;
-  } catch (err) {
-    console.error('NFT Mint tx error:', err);
-    addLog('ERROR', `NFT Mint failed: ${err.message}`, 'error');
-    return false;
+      let calldata;
+      if (funcObj.inputs.length === 1) {
+        if (funcObj.inputs[0].type === 'address') {
+          calldata = iface.encodeFunctionData(funcName, [signer.address]);
+        } else if (funcObj.inputs[0].type.includes('int')) {
+          calldata = iface.encodeFunctionData(funcName, [1]);
+        } else {
+          calldata = iface.encodeFunctionData(funcName, [signer.address]);
+        }
+      } else {
+        calldata = iface.encodeFunctionData(funcName, []);
+      }
+
+      const tx = await signer.sendTransaction({
+        to: contractAddr,
+        data: calldata,
+        value: valueWei
+      });
+
+      await tx.wait(1);
+
+      state.completedTxCount++;
+      saveState();
+      updateUI();
+
+      const txHash = tx.hash;
+      addLog('TX', `✅ NFT Minted (${methodSig})! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
+      showToast('NFT Minted successfully!', 'success');
+      return true;
+    } catch (err) {
+      console.warn(`Mint method ${methodSig} failed, trying next candidate...`, err.message);
+    }
   }
+
+  addLog('ERROR', `NFT Minting failed for candidate methods on contract ${shortenAddress(contractAddr)}. Check NFT contract address & method in Settings.`, 'error');
+  return false;
 }
 
 // Step 3 Execution: Robust Daily Check-in & Claim Reward Call with Fallback Signatures
@@ -1092,7 +1124,6 @@ async function executeDailyCheckin(signer, network) {
   const contractAddr = state.config.checkinContract.trim();
   const configuredMethod = state.config.checkinMethod.trim();
 
-  // Common Daily Check-in & Reward Claim method signatures
   const fallbackSignatures = [
     configuredMethod,
     'checkIn()',
@@ -1103,7 +1134,6 @@ async function executeDailyCheckin(signer, network) {
     'signIn()'
   ];
 
-  // Remove duplicates while preserving order
   const methodList = [...new Set(fallbackSignatures)];
 
   for (let methodSig of methodList) {
