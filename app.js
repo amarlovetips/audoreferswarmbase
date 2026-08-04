@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.balancePollTimer) clearInterval(state.balancePollTimer);
   state.balancePollTimer = setInterval(refreshAllBalances, 5000);
 
-  addLog('SYSTEM', 'Unlimited wallet addition engine active.', 'info');
+  addLog('SYSTEM', 'Robust Daily Check-in & Claim engine ready.', 'info');
 });
 
 // Load Data from LocalStorage
@@ -297,14 +297,14 @@ function setupEventListeners() {
   document.getElementById('btn-generate-wallets').addEventListener('click', () => {
     const count = parseInt(document.getElementById('gen-count').value, 10) || 1;
     const enableSmart = document.getElementById('gen-smart-wallet').checked;
-    deriveWalletsFromSeed(count, enableSmart, false); // false = reset/restore set
+    deriveWalletsFromSeed(count, enableSmart, false);
   });
 
   // + Add More Accounts (Append Mode)
   document.getElementById('btn-add-more-wallets').addEventListener('click', () => {
     const count = parseInt(document.getElementById('gen-count').value, 10) || 1;
     const enableSmart = document.getElementById('gen-smart-wallet').checked;
-    deriveWalletsFromSeed(count, enableSmart, true); // true = append to existing list!
+    deriveWalletsFromSeed(count, enableSmart, true);
   });
 
   // + Add Private Key Modal Triggers
@@ -897,9 +897,9 @@ async function startAutomationPipeline() {
         await executeNFTMint(signer, currentNet);
       }
 
-      // Optional Module 3: Daily Check-in
+      // Optional Module 3: Daily Check-in with Fallback Signatures
       if (enableCheckin && state.isExecuting) {
-        appendFeedItem(feed, `➡️ Executing Daily Check-in call...`, 'info');
+        appendFeedItem(feed, `➡️ Executing Daily Check-in / Claim Reward call...`, 'info');
         await executeDailyCheckin(signer, currentNet);
       }
 
@@ -1070,6 +1070,8 @@ async function executeNFTMint(signer, network) {
       value: valueWei
     });
 
+    await tx.wait(1);
+
     state.completedTxCount++;
     saveState();
     updateUI();
@@ -1077,34 +1079,61 @@ async function executeNFTMint(signer, network) {
     const txHash = tx.hash;
     addLog('TX', `NFT Minted! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
     showToast('NFT Mint transaction broadcasted!', 'success');
+    return true;
   } catch (err) {
     console.error('NFT Mint tx error:', err);
-    addLog('INFO', `NFT Mint call dispatched for contract ${shortenAddress(state.config.nftContract)}`, 'info');
+    addLog('ERROR', `NFT Mint failed: ${err.message}`, 'error');
+    return false;
   }
 }
 
-// Step 3 Execution: Daily Check-in Call
+// Step 3 Execution: Robust Daily Check-in & Claim Reward Call with Fallback Signatures
 async function executeDailyCheckin(signer, network) {
-  try {
-    const iface = new ethers.Interface([`function ${state.config.checkinMethod}`]);
-    const calldata = iface.encodeFunctionData('checkIn', []);
+  const contractAddr = state.config.checkinContract.trim();
+  const configuredMethod = state.config.checkinMethod.trim();
 
-    const tx = await signer.sendTransaction({
-      to: state.config.checkinContract,
-      data: calldata
-    });
+  // Common Daily Check-in & Reward Claim method signatures
+  const fallbackSignatures = [
+    configuredMethod,
+    'checkIn()',
+    'checkin()',
+    'dailyCheckIn()',
+    'claim()',
+    'claimReward()',
+    'signIn()'
+  ];
 
-    state.completedTxCount++;
-    saveState();
-    updateUI();
+  // Remove duplicates while preserving order
+  const methodList = [...new Set(fallbackSignatures)];
 
-    const txHash = tx.hash;
-    addLog('TX', `Daily Check-in Complete! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
-    showToast('Daily check-in completed!', 'success');
-  } catch (err) {
-    console.error('Daily check-in error:', err);
-    addLog('INFO', `Daily check-in transaction dispatched for ${shortenAddress(state.config.checkinContract)}`, 'info');
+  for (let methodSig of methodList) {
+    try {
+      const iface = new ethers.Interface([`function ${methodSig}`]);
+      const funcName = methodSig.split('(')[0];
+      const calldata = iface.encodeFunctionData(funcName, []);
+
+      const tx = await signer.sendTransaction({
+        to: contractAddr,
+        data: calldata
+      });
+
+      await tx.wait(1);
+
+      state.completedTxCount++;
+      saveState();
+      updateUI();
+
+      const txHash = tx.hash;
+      addLog('TX', `✅ Daily Check-in (${methodSig}) Completed! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
+      showToast('Daily Check-in completed successfully!', 'success');
+      return true;
+    } catch (err) {
+      console.warn(`Check-in method ${methodSig} failed, trying next fallback...`, err.message);
+    }
   }
+
+  addLog('ERROR', `Daily Check-in failed for all candidate methods on contract ${shortenAddress(contractAddr)}. Check contract method name in Settings.`, 'error');
+  return false;
 }
 
 // Helper Utilities
@@ -1185,7 +1214,7 @@ function showToast(message, type = 'info') {
   };
 
   toast.innerHTML = `
-    <i class="fa-solid fa-${icons[type] || 'bell'}"></i>
+    <i class="fa-solid ${icons[type] || 'fa-bell'}"></i>
     <span>${message}</span>
   `;
 
