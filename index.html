@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <title>opBNB Network Web3 Utility Dashboard</title>
   <meta name="description" content="Client-side Web3 utility dashboard for opBNB Network account management and smart contract interaction. 100% local browser execution.">
-  <link rel="stylesheet" href="style.css?v=7.0">
+  <link rel="stylesheet" href="style.css?v=8.0">
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -481,7 +481,17 @@
                   <input type="checkbox" id="task-enable-checkin" checked>
                   <div>
                     <strong class="text-blue"><i class="fa-solid fa-calendar-check"></i> Module 3: Daily Check-in / Claim Reward (hiveCheckIn)</strong>
-                    <p class="text-sub">Standalone Swarmbase daily check-in call (<code>hiveCheckIn()</code>).</p>
+                    <p class="text-sub">Standalone daily check-in call (<code>hiveCheckIn()</code> or custom method).</p>
+                  </div>
+                </label>
+              </div>
+
+              <div class="task-check-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="task-enable-custom">
+                  <div>
+                    <strong class="text-purple"><i class="fa-solid fa-code"></i> Module 4: Universal Custom Contract Call</strong>
+                    <p class="text-sub">Executes any custom smart contract function & parameters configured in Contract Settings.</p>
                   </div>
                 </label>
               </div>
@@ -536,97 +546,118 @@
         <div class="panel">
           <div class="panel-header flex-between">
             <div>
-              <h3><i class="fa-solid fa-sliders"></i> Contract Addresses & Method Configuration</h3>
-              <p class="panel-sub">Add or customize smart contract addresses, method signatures, and referral targets.</p>
+              <h3><i class="fa-solid fa-sliders"></i> Universal EVM Chain & Smart Contract Customizer</h3>
+              <p class="panel-sub">Configure any EVM blockchain network (opBNB, BSC, Polygon, Base, Arbitrum, etc.) and custom smart contract calls.</p>
             </div>
             <button id="btn-save-config" class="btn btn-primary">
-              <i class="fa-solid fa-floppy-disk"></i> Save Contract Settings
+              <i class="fa-solid fa-floppy-disk"></i> Save All Settings
             </button>
           </div>
 
           <div class="config-sections-grid">
-            <!-- Referral Config -->
+            <!-- 1. Universal Network & RPC Config -->
             <div class="config-card">
-              <h4><i class="fa-solid fa-user-check text-purple"></i> Swarmbase Referral Contract Settings</h4>
+              <h4><i class="fa-solid fa-network-wired text-amber"></i> 1. Universal EVM Network & RPC</h4>
               
               <div class="input-group">
-                <label for="cfg-ref-contract">Swarmbase Contract Address</label>
-                <input type="text" id="cfg-ref-contract" value="0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c" class="custom-input font-mono">
-                <span class="field-help">opBNB Scan Contract: 0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c</span>
+                <label for="cfg-rpc-url">RPC Endpoint URL</label>
+                <input type="text" id="cfg-rpc-url" value="https://opbnb-mainnet-rpc.bnbchain.org" class="custom-input font-mono" placeholder="https://...">
+                <span class="field-help">Any EVM RPC (e.g., opBNB, BSC, Base, Polygon, Arbitrum)</span>
               </div>
 
               <div class="input-group">
-                <label for="cfg-ref-target">Referral Target Address (refer add)</label>
-                <input type="text" id="cfg-ref-target" value="0x22f6e173ee638eac5ef235a750990e049b9cc62a" class="custom-input font-mono">
-              </div>
-
-              <div class="input-group">
-                <label for="cfg-ref-method">Method Signature</label>
-                <input type="text" id="cfg-ref-method" value="registerWithReferral(address)" class="custom-input font-mono">
-                <span class="field-help">Try <code>registerWithReferral(address)</code> or <code>registerWithReferral(string,address)</code></span>
-              </div>
-
-              <div class="input-group">
-                <label for="cfg-ref-input">String Input Parameter (input)</label>
-                <input type="text" id="cfg-ref-input" value="" class="custom-input font-mono" placeholder="Optional text or leave blank">
-              </div>
-            </div>
-
-            <!-- NFT Mint Config -->
-            <div class="config-card">
-              <h4><i class="fa-solid fa-shapes text-green"></i> NFT Mint Contract Settings</h4>
-              
-              <div class="input-group">
-                <label for="cfg-nft-contract">NFT Mint Contract Address</label>
-                <input type="text" id="cfg-nft-contract" value="0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627" class="custom-input font-mono" placeholder="0x...">
-                <span class="field-help">opBNB NFT Contract: 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627</span>
-              </div>
-
-              <div class="input-group">
-                <label for="cfg-nft-method">Mint Method Signature</label>
-                <input type="text" id="cfg-nft-method" value="mintPioneer()" class="custom-input font-mono">
-                <span class="field-help">Options: <code>mintPioneer()</code>, <code>mintBuilder()</code>, <code>mintOG()</code></span>
-              </div>
-
-              <div class="input-group">
-                <label for="cfg-nft-value">Mint Fee (BNB)</label>
-                <input type="text" id="cfg-nft-value" value="0" class="custom-input font-mono">
-              </div>
-            </div>
-
-            <!-- Daily Check-in Config -->
-            <div class="config-card">
-              <h4><i class="fa-solid fa-calendar-check text-blue"></i> Daily Check-in Contract Settings</h4>
-              
-              <div class="input-group">
-                <label for="cfg-checkin-contract">Daily Check-in Contract Address</label>
-                <input type="text" id="cfg-checkin-contract" value="0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c" class="custom-input font-mono" placeholder="0x...">
-              </div>
-
-              <div class="input-group">
-                <label for="cfg-checkin-method">Check-in Method Signature</label>
-                <input type="text" id="cfg-checkin-method" value="hiveCheckIn()" class="custom-input font-mono">
-                <span class="field-help">Set to Swarmbase <code>hiveCheckIn()</code></span>
-              </div>
-            </div>
-
-            <!-- Network & RPC Config -->
-            <div class="config-card">
-              <h4><i class="fa-solid fa-network-wired text-amber"></i> Network & RPC Endpoints</h4>
-              
-              <div class="input-group">
-                <label for="cfg-rpc-url">opBNB RPC Endpoint</label>
-                <input type="text" id="cfg-rpc-url" value="https://opbnb-mainnet-rpc.bnbchain.org" class="custom-input font-mono">
-              </div>
-
-              <div class="input-group">
-                <label for="cfg-chain-id">Chain ID</label>
-                <input type="text" id="cfg-chain-id" value="204" class="custom-input font-mono">
+                <label for="cfg-chain-id">Chain ID (Integer)</label>
+                <input type="text" id="cfg-chain-id" value="204" class="custom-input font-mono" placeholder="204">
               </div>
 
               <div class="input-group">
                 <label for="cfg-explorer-url">Block Explorer URL</label>
-                <input type="text" id="cfg-explorer-url" value="https://opbnbscan.com" class="custom-input font-mono">
+                <input type="text" id="cfg-explorer-url" value="https://opbnbscan.com" class="custom-input font-mono" placeholder="https://opbnbscan.com">
+              </div>
+            </div>
+
+            <!-- 2. Primary Referral Contract Call -->
+            <div class="config-card">
+              <h4><i class="fa-solid fa-user-check text-purple"></i> 2. Module 1: Primary Contract Call</h4>
+              
+              <div class="input-group">
+                <label for="cfg-ref-contract">Target Contract Address</label>
+                <input type="text" id="cfg-ref-contract" value="0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c" class="custom-input font-mono" placeholder="0x...">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-ref-method">Method Signature</label>
+                <input type="text" id="cfg-ref-method" value="registerWithReferral(address)" class="custom-input font-mono" placeholder="e.g. registerWithReferral(address)">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-ref-target">Target Parameter Value</label>
+                <input type="text" id="cfg-ref-target" value="0x22f6e173ee638eac5ef235a750990e049b9cc62a" class="custom-input font-mono" placeholder="Address, string or params">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-ref-input">Additional Parameter String (Optional)</label>
+                <input type="text" id="cfg-ref-input" value="" class="custom-input font-mono" placeholder="Extra parameter if required">
+              </div>
+            </div>
+
+            <!-- 3. Secondary NFT Mint Contract Call -->
+            <div class="config-card">
+              <h4><i class="fa-solid fa-shapes text-green"></i> 3. Module 2: Secondary / NFT Mint Call</h4>
+              
+              <div class="input-group">
+                <label for="cfg-nft-contract">NFT / Mint Contract Address</label>
+                <input type="text" id="cfg-nft-contract" value="0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627" class="custom-input font-mono" placeholder="0x...">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-nft-method">Mint Method Signature</label>
+                <input type="text" id="cfg-nft-method" value="mintPioneer()" class="custom-input font-mono" placeholder="e.g. mintPioneer() or mint()">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-nft-value">Payable Fee Value (ETH/BNB)</label>
+                <input type="text" id="cfg-nft-value" value="0" class="custom-input font-mono" placeholder="0">
+              </div>
+            </div>
+
+            <!-- 4. Tertiary Check-in / Claim Call -->
+            <div class="config-card">
+              <h4><i class="fa-solid fa-calendar-check text-blue"></i> 4. Module 3: Daily Check-in / Claim Call</h4>
+              
+              <div class="input-group">
+                <label for="cfg-checkin-contract">Check-in Contract Address</label>
+                <input type="text" id="cfg-checkin-contract" value="0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c" class="custom-input font-mono" placeholder="0x...">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-checkin-method">Method Signature</label>
+                <input type="text" id="cfg-checkin-method" value="hiveCheckIn()" class="custom-input font-mono" placeholder="e.g. hiveCheckIn() or claim()">
+              </div>
+            </div>
+
+            <!-- 5. Module 4: Custom Dynamic Contract Call -->
+            <div class="config-card">
+              <h4><i class="fa-solid fa-code text-purple"></i> 5. Module 4: Any Custom Contract Call</h4>
+              
+              <div class="input-group">
+                <label for="cfg-custom-contract">Custom Contract Address</label>
+                <input type="text" id="cfg-custom-contract" value="" class="custom-input font-mono" placeholder="0x...">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-custom-method">Custom Method Signature</label>
+                <input type="text" id="cfg-custom-method" value="" class="custom-input font-mono" placeholder="e.g. buy(address) or stake(uint256)">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-custom-params">Method Parameter Values (comma separated)</label>
+                <input type="text" id="cfg-custom-params" value="" class="custom-input font-mono" placeholder="e.g. 0x123..., 100">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-custom-value">Payable Amount (ETH/BNB)</label>
+                <input type="text" id="cfg-custom-value" value="0" class="custom-input font-mono" placeholder="0">
               </div>
             </div>
           </div>
@@ -731,6 +762,6 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- JavaScript with Cache Buster -->
-  <script src="app.js?v=7.0"></script>
+  <script src="app.js?v=8.0"></script>
 </body>
 </html>

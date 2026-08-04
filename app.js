@@ -30,6 +30,9 @@ const NETWORKS = {
 const OFFICIAL_NFT_CONTRACT = '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627';
 
 const DEFAULT_CONFIG = {
+  rpcUrl: 'https://opbnb-mainnet-rpc.bnbchain.org',
+  chainId: '204',
+  explorerUrl: 'https://opbnbscan.com',
   refTarget: '0x22f6e173ee638eac5ef235a750990e049b9cc62a',
   refContract: '0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c',
   refMethod: 'registerWithReferral(address)',
@@ -39,6 +42,10 @@ const DEFAULT_CONFIG = {
   nftValue: '0',
   checkinContract: '0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c',
   checkinMethod: 'hiveCheckIn()',
+  customContract: '',
+  customMethod: '',
+  customParams: '',
+  customValue: '0',
   selectedNetwork: 'mainnet'
 };
 
@@ -935,20 +942,32 @@ function handleImportKeys(e) {
 }
 
 function saveContractConfig() {
+  state.config.rpcUrl = document.getElementById('cfg-rpc-url')?.value.trim() || 'https://opbnb-mainnet-rpc.bnbchain.org';
+  state.config.chainId = document.getElementById('cfg-chain-id')?.value.trim() || '204';
+  state.config.explorerUrl = document.getElementById('cfg-explorer-url')?.value.trim() || 'https://opbnbscan.com';
+
   state.config.refTarget = document.getElementById('cfg-ref-target').value.trim();
   state.config.refContract = document.getElementById('cfg-ref-contract').value.trim();
   state.config.refMethod = document.getElementById('cfg-ref-method').value.trim();
   state.config.refInputParam = document.getElementById('cfg-ref-input').value.trim();
+
   state.config.nftContract = document.getElementById('cfg-nft-contract').value.trim() || OFFICIAL_NFT_CONTRACT;
   state.config.nftMethod = document.getElementById('cfg-nft-method').value.trim();
   state.config.nftValue = document.getElementById('cfg-nft-value').value.trim();
+
   state.config.checkinContract = document.getElementById('cfg-checkin-contract').value.trim();
   state.config.checkinMethod = document.getElementById('cfg-checkin-method').value.trim();
 
+  state.config.customContract = document.getElementById('cfg-custom-contract')?.value.trim() || '';
+  state.config.customMethod = document.getElementById('cfg-custom-method')?.value.trim() || '';
+  state.config.customParams = document.getElementById('cfg-custom-params')?.value.trim() || '';
+  state.config.customValue = document.getElementById('cfg-custom-value')?.value.trim() || '0';
+
   saveState();
+  initProvider();
   updateUI();
-  showToast('Contract settings updated successfully!', 'success');
-  addLog('CONFIG', 'Contract settings updated.', 'info');
+  showToast('Universal network & contract settings updated successfully!', 'success');
+  addLog('CONFIG', `Universal contract settings saved for Chain ID: ${state.config.chainId}`, 'info');
 }
 
 // AUTOMATION ENGINE LOGIC (WEB WORKER UNTHROTTLED BACKGROUND EXECUTION)
@@ -986,6 +1005,7 @@ async function startAutomationPipeline() {
   const enableMintBuilder = document.getElementById('task-enable-builder')?.checked || false;
   const enableMintOG = document.getElementById('task-enable-og')?.checked || false;
   const enableCheckin = document.getElementById('task-enable-checkin').checked;
+  const enableCustom = document.getElementById('task-enable-custom')?.checked || false;
   const delaySec = parseInt(document.getElementById('exec-delay').value, 10) || 30;
 
   const feed = document.getElementById('exec-live-feed');
@@ -1015,15 +1035,15 @@ async function startAutomationPipeline() {
       if (balanceWei === 0n) {
         appendFeedItem(feed, `⚠️ Wallet #${realWalletNum} (${shortenAddress(wData.address)}) has 0 BNB balance.`, 'error');
         if (idx === 0) {
-          addLog('WARNING', `Please deposit opBNB BNB into Wallet #${realWalletNum} (${wData.address}) to start!`, 'error');
-          showToast(`Fund Wallet #${realWalletNum} (${shortenAddress(wData.address)}) with BNB first!`, 'error');
+          addLog('WARNING', `Please deposit gas tokens into Wallet #${realWalletNum} (${wData.address}) to start!`, 'error');
+          showToast(`Fund Wallet #${realWalletNum} (${shortenAddress(wData.address)}) with BNB/ETH first!`, 'error');
           break;
         } else {
           continue;
         }
       }
 
-      // Task 1: Swarmbase registerWithReferral
+      // Task 1: Swarmbase registerWithReferral / Primary Call
       if (enableRefer && state.isExecuting) {
         appendFeedItem(feed, `➡️ Calling registerWithReferral on ${shortenAddress(state.config.refContract)}...`, 'info');
         await executeReferralRegister(signer, currentNet);
@@ -1049,11 +1069,17 @@ async function startAutomationPipeline() {
 
       // Optional Module 3: Daily Check-in (hiveCheckIn)
       if (enableCheckin && state.isExecuting) {
-        appendFeedItem(feed, `➡️ Executing Daily Check-in (hiveCheckIn)...`, 'info');
+        appendFeedItem(feed, `➡️ Executing Daily Check-in (${state.config.checkinMethod || 'hiveCheckIn()'})...`, 'info');
         const checkinResult = await executeDailyCheckin(signer, currentNet);
         if (!checkinResult) {
           appendFeedItem(feed, `⚠️ Daily Check-in call reverted on ${shortenAddress(state.config.checkinContract)}. Check contract address or status.`, 'error');
         }
+      }
+
+      // Optional Module 4: Universal Custom Dynamic Contract Call
+      if (enableCustom && state.isExecuting) {
+        appendFeedItem(feed, `➡️ Executing Universal Custom Call (${state.config.customMethod || 'Custom'})...`, 'info');
+        await executeCustomDynamicCall(signer, currentNet);
       }
 
       // Auto-Sweep Remaining BNB Balance to Next Wallet in Range with 3x Gas Cost Reserve!
@@ -1326,6 +1352,81 @@ async function executeDailyCheckin(signer, network) {
 
   addLog('ERROR', `Daily Check-in failed on contract ${shortenAddress(contractAddr)}. Check Check-in Contract Address & Method in Contract Settings tab.`, 'error');
   return false;
+}
+
+// Step 4 Execution: Universal Dynamic Custom Smart Contract Call
+async function executeCustomDynamicCall(signer, network) {
+  const contractAddr = state.config.customContract?.trim();
+  const methodSig = state.config.customMethod?.trim();
+  const paramValuesStr = state.config.customParams?.trim() || '';
+  const valueEth = state.config.customValue?.trim() || '0';
+
+  if (!contractAddr || !ethers.isAddress(contractAddr)) {
+    addLog('ERROR', 'Custom Contract Address is invalid or empty in Contract Settings.', 'error');
+    return false;
+  }
+
+  if (!methodSig) {
+    addLog('ERROR', 'Custom Method Signature is empty in Contract Settings.', 'error');
+    return false;
+  }
+
+  try {
+    const calldata = buildDynamicCalldata(methodSig, paramValuesStr);
+    const valueWei = valueEth && !isNaN(valueEth) && parseFloat(valueEth) > 0 ? ethers.parseEther(valueEth) : 0n;
+
+    const tx = await signer.sendTransaction({
+      to: contractAddr,
+      data: calldata,
+      value: valueWei
+    });
+
+    await tx.wait(1);
+
+    state.completedTxCount++;
+    saveState();
+    updateUI();
+
+    const txHash = tx.hash;
+    addLog('TX', `✅ Universal Custom Call (${methodSig}) Executed! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
+    showToast(`Custom Call (${methodSig}) completed successfully!`, 'success');
+    return true;
+  } catch (err) {
+    console.error('Custom dynamic call error:', err);
+    addLog('ERROR', `Custom Call (${methodSig}) failed: ${err.message}`, 'error');
+    return false;
+  }
+}
+
+// Universal Calldata Encoder Helper
+function buildDynamicCalldata(methodSig, paramValuesStr) {
+  methodSig = methodSig.trim();
+  if (methodSig.startsWith('0x')) return methodSig;
+
+  if (!methodSig.endsWith(')')) methodSig += '()';
+
+  const parenIdx = methodSig.indexOf('(');
+  const funcName = methodSig.substring(0, parenIdx).trim();
+  const typesStr = methodSig.substring(parenIdx + 1, methodSig.length - 1).trim();
+
+  if (!typesStr) {
+    return ethers.id(methodSig).substring(0, 10);
+  }
+
+  const types = typesStr.split(',').map(t => t.trim());
+  const rawValues = paramValuesStr ? paramValuesStr.split(',').map(v => v.trim()) : [];
+
+  const parsedValues = types.map((type, idx) => {
+    const val = rawValues[idx] || '';
+    if (type === 'address') return val || ethers.ZeroAddress;
+    if (type.startsWith('uint') || type.startsWith('int')) return BigInt(val || '0');
+    if (type === 'bool') return val.toLowerCase() === 'true' || val === '1';
+    if (type.startsWith('bytes')) return val.startsWith('0x') ? val : ethers.hexlify(ethers.toUtf8Bytes(val));
+    return val;
+  });
+
+  const iface = new ethers.Interface([`function ${methodSig}`]);
+  return iface.encodeFunctionData(funcName, parsedValues);
 }
 
 // Helper Utilities
