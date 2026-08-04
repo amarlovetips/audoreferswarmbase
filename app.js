@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.balancePollTimer) clearInterval(state.balancePollTimer);
   state.balancePollTimer = setInterval(refreshAllBalances, 5000);
 
-  addLog('SYSTEM', 'Smart Dynamic NFT Minting engine active.', 'info');
+  addLog('SYSTEM', 'Smart Dynamic NFT Minting & Daily Check-in engine ready.', 'info');
 });
 
 // Load Data from LocalStorage
@@ -894,13 +894,19 @@ async function startAutomationPipeline() {
       // Optional Module 2: Smart Dynamic NFT Mint
       if (enableMint && state.isExecuting) {
         appendFeedItem(feed, `➡️ Minting NFT on contract ${shortenAddress(state.config.nftContract)}...`, 'info');
-        await executeNFTMint(signer, currentNet);
+        const mintResult = await executeNFTMint(signer, currentNet);
+        if (!mintResult) {
+          appendFeedItem(feed, `⚠️ NFT Mint call reverted on ${shortenAddress(state.config.nftContract)}. Set NFT contract address in Contract Settings tab.`, 'error');
+        }
       }
 
       // Optional Module 3: Daily Check-in with Fallback Signatures
       if (enableCheckin && state.isExecuting) {
         appendFeedItem(feed, `➡️ Executing Daily Check-in / Claim Reward call...`, 'info');
-        await executeDailyCheckin(signer, currentNet);
+        const checkinResult = await executeDailyCheckin(signer, currentNet);
+        if (!checkinResult) {
+          appendFeedItem(feed, `⚠️ Daily Check-in call reverted on ${shortenAddress(state.config.checkinContract)}. Set Check-in contract address in Contract Settings tab.`, 'error');
+        }
       }
 
       // Auto-Sweep Remaining BNB Balance to Next Wallet in Range with 3x Gas Cost Reserve!
@@ -1057,11 +1063,33 @@ async function executeReferralRegister(signer, network) {
   }
 }
 
-// Step 2 Execution: Smart Dynamic NFT Mint Call with Auto Fallback Signatures
+// Step 2 Execution: Smart Dynamic NFT Mint Call with Raw Data Fallback
 async function executeNFTMint(signer, network) {
   const contractAddr = state.config.nftContract.trim();
   const configuredMethod = state.config.nftMethod.trim();
   const valueWei = ethers.parseEther(state.config.nftValue || '0');
+
+  // Direct Raw Hex Calldata Check (e.g., 0x12345678)
+  if (configuredMethod.startsWith('0x')) {
+    try {
+      const tx = await signer.sendTransaction({
+        to: contractAddr,
+        data: configuredMethod,
+        value: valueWei
+      });
+      await tx.wait(1);
+      state.completedTxCount++;
+      saveState();
+      updateUI();
+      const txHash = tx.hash;
+      addLog('TX', `✅ NFT Minted via Raw Hex! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
+      showToast('NFT Minted successfully!', 'success');
+      return true;
+    } catch (err) {
+      addLog('ERROR', `Raw Hex NFT Mint failed: ${err.message}`, 'error');
+      return false;
+    }
+  }
 
   const candidateSignatures = [
     configuredMethod,
@@ -1115,14 +1143,35 @@ async function executeNFTMint(signer, network) {
     }
   }
 
-  addLog('ERROR', `NFT Minting failed for candidate methods on contract ${shortenAddress(contractAddr)}. Check NFT contract address & method in Settings.`, 'error');
+  addLog('ERROR', `NFT Minting failed on contract ${shortenAddress(contractAddr)}. Check NFT Contract Address & Method in Contract Settings tab.`, 'error');
   return false;
 }
 
-// Step 3 Execution: Robust Daily Check-in & Claim Reward Call with Fallback Signatures
+// Step 3 Execution: Robust Daily Check-in & Claim Reward Call with Raw Data Fallback
 async function executeDailyCheckin(signer, network) {
   const contractAddr = state.config.checkinContract.trim();
   const configuredMethod = state.config.checkinMethod.trim();
+
+  // Direct Raw Hex Calldata Check (e.g., 0x12345678)
+  if (configuredMethod.startsWith('0x')) {
+    try {
+      const tx = await signer.sendTransaction({
+        to: contractAddr,
+        data: configuredMethod
+      });
+      await tx.wait(1);
+      state.completedTxCount++;
+      saveState();
+      updateUI();
+      const txHash = tx.hash;
+      addLog('TX', `✅ Daily Check-in via Raw Hex Completed! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
+      showToast('Daily Check-in completed successfully!', 'success');
+      return true;
+    } catch (err) {
+      addLog('ERROR', `Raw Hex Daily Check-in failed: ${err.message}`, 'error');
+      return false;
+    }
+  }
 
   const fallbackSignatures = [
     configuredMethod,
@@ -1162,7 +1211,7 @@ async function executeDailyCheckin(signer, network) {
     }
   }
 
-  addLog('ERROR', `Daily Check-in failed for all candidate methods on contract ${shortenAddress(contractAddr)}. Check contract method name in Settings.`, 'error');
+  addLog('ERROR', `Daily Check-in failed on contract ${shortenAddress(contractAddr)}. Check Check-in Contract Address & Method in Contract Settings tab.`, 'error');
   return false;
 }
 
