@@ -355,8 +355,8 @@
                 <label class="checkbox-label">
                   <input type="checkbox" id="task-enable-checkin">
                   <div>
-                    <strong class="text-blue"><i class="fa-solid fa-calendar-check"></i> Separate Module: Daily Check-in / Claim Reward</strong>
-                    <p class="text-sub">Standalone daily check-in call for streak and points.</p>
+                    <strong class="text-blue"><i class="fa-solid fa-calendar-check"></i> Separate Module: Daily Check-in / Claim Reward (hiveCheckIn)</strong>
+                    <p class="text-sub">Standalone Swarmbase daily check-in call (<code>hiveCheckIn()</code>).</p>
                   </div>
                 </label>
               </div>
@@ -478,7 +478,8 @@
 
               <div class="input-group">
                 <label for="cfg-checkin-method">Check-in Method Signature</label>
-                <input type="text" id="cfg-checkin-method" value="checkIn()" class="custom-input font-mono">
+                <input type="text" id="cfg-checkin-method" value="hiveCheckIn()" class="custom-input font-mono">
+                <span class="field-help">Set to Swarmbase <code>hiveCheckIn()</code></span>
               </div>
             </div>
 
@@ -527,7 +528,7 @@
             <div class="console-row info">
               <span class="log-time">[00:00:00]</span>
               <span class="log-tag tag-info">SYSTEM</span>
-              <span class="log-msg">Unlimited wallet addition engine enabled. You can append or derive 10, 50, 100+ wallets.</span>
+              <span class="log-msg">Swarmbase hiveCheckIn() method configured for Daily Check-in.</span>
             </div>
           </div>
         </div>

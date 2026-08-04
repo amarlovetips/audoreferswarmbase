@@ -36,7 +36,7 @@ const DEFAULT_CONFIG = {
   nftMethod: 'mint()',
   nftValue: '0',
   checkinContract: '0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c',
-  checkinMethod: 'checkIn()',
+  checkinMethod: 'hiveCheckIn()',
   selectedNetwork: 'mainnet'
 };
 
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.balancePollTimer) clearInterval(state.balancePollTimer);
   state.balancePollTimer = setInterval(refreshAllBalances, 5000);
 
-  addLog('SYSTEM', 'Smart Dynamic NFT Minting & Daily Check-in engine ready.', 'info');
+  addLog('SYSTEM', 'Swarmbase hiveCheckIn() Daily Check-in engine ready.', 'info');
 });
 
 // Load Data from LocalStorage
@@ -900,12 +900,12 @@ async function startAutomationPipeline() {
         }
       }
 
-      // Optional Module 3: Daily Check-in with Fallback Signatures
+      // Optional Module 3: Daily Check-in with Fallback Signatures (hiveCheckIn)
       if (enableCheckin && state.isExecuting) {
-        appendFeedItem(feed, `➡️ Executing Daily Check-in / Claim Reward call...`, 'info');
+        appendFeedItem(feed, `➡️ Executing Daily Check-in (hiveCheckIn)...`, 'info');
         const checkinResult = await executeDailyCheckin(signer, currentNet);
         if (!checkinResult) {
-          appendFeedItem(feed, `⚠️ Daily Check-in call reverted on ${shortenAddress(state.config.checkinContract)}. Set Check-in contract address in Contract Settings tab.`, 'error');
+          appendFeedItem(feed, `⚠️ Daily Check-in call reverted on ${shortenAddress(state.config.checkinContract)}. Check contract address or status.`, 'error');
         }
       }
 
@@ -1147,10 +1147,10 @@ async function executeNFTMint(signer, network) {
   return false;
 }
 
-// Step 3 Execution: Robust Daily Check-in & Claim Reward Call with Raw Data Fallback
+// Step 3 Execution: Swarmbase Daily Check-in Call (hiveCheckIn)
 async function executeDailyCheckin(signer, network) {
   const contractAddr = state.config.checkinContract.trim();
-  const configuredMethod = state.config.checkinMethod.trim();
+  const configuredMethod = state.config.checkinMethod.trim() || 'hiveCheckIn()';
 
   // Direct Raw Hex Calldata Check (e.g., 0x12345678)
   if (configuredMethod.startsWith('0x')) {
@@ -1164,7 +1164,7 @@ async function executeDailyCheckin(signer, network) {
       saveState();
       updateUI();
       const txHash = tx.hash;
-      addLog('TX', `✅ Daily Check-in via Raw Hex Completed! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
+      addLog('TX', `✅ Daily Check-in (Raw Hex) Completed! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
       showToast('Daily Check-in completed successfully!', 'success');
       return true;
     } catch (err) {
@@ -1175,12 +1175,14 @@ async function executeDailyCheckin(signer, network) {
 
   const fallbackSignatures = [
     configuredMethod,
+    'hiveCheckIn()',
+    'hiveCheckin()',
+    'hiveCheckIn(address)',
     'checkIn()',
     'checkin()',
     'dailyCheckIn()',
     'claim()',
-    'claimReward()',
-    'signIn()'
+    'claimReward()'
   ];
 
   const methodList = [...new Set(fallbackSignatures)];
@@ -1189,7 +1191,18 @@ async function executeDailyCheckin(signer, network) {
     try {
       const iface = new ethers.Interface([`function ${methodSig}`]);
       const funcName = methodSig.split('(')[0];
-      const calldata = iface.encodeFunctionData(funcName, []);
+      const funcObj = iface.getFunction(funcName);
+
+      let calldata;
+      if (funcObj.inputs.length === 1) {
+        if (funcObj.inputs[0].type === 'address') {
+          calldata = iface.encodeFunctionData(funcName, [signer.address]);
+        } else {
+          calldata = iface.encodeFunctionData(funcName, [""]);
+        }
+      } else {
+        calldata = iface.encodeFunctionData(funcName, []);
+      }
 
       const tx = await signer.sendTransaction({
         to: contractAddr,
