@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>opBNB AutoTX & Referral Automation Bot</title>
+  <meta name="description" content="Automated Web3 Transaction Bot on opBNB Chain for Wallet Creation, Smart Wallet generation, Referral Registration, NFT Minting, and Daily Check-ins.">
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Ethers.js v6 UMD -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-bolt-lightning"></i>
+        </div>
+        <div class="brand-text">
+          <h2>opBNB AutoTX</h2>
+          <span class="badge badge-network" id="sidebar-net-badge">opBNB Mainnet</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="dashboard">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-tab="wallets">
+          <i class="fa-solid fa-wallet"></i>
+          <span>Wallet Manager</span>
+          <span class="nav-badge" id="nav-wallet-count">0</span>
+        </button>
+        <button class="nav-item" data-tab="automation">
+          <i class="fa-solid fa-robot"></i>
+          <span>Auto Task Engine</span>
+        </button>
+        <button class="nav-item" data-tab="contracts">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Contract Settings</span>
+        </button>
+        <button class="nav-item" data-tab="logs">
+          <i class="fa-solid fa-terminal"></i>
+          <span>Live Logs & Explorer</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="referral-card">
+          <div class="ref-title"><i class="fa-solid fa-user-plus"></i> Referral Target</div>
+          <div class="ref-address" id="sidebar-ref-addr" title="Click to copy">0x22f6...c62a</div>
+          <a href="https://point.swarmbase.io/?ref=0x22f6e173ee638eac5ef235a750990e049b9cc62a" target="_blank" rel="noopener" class="ref-link">
+            Swarmbase Point <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          </a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Bar Header -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="page-title">Dashboard Overview</h1>
+          <p class="subtitle" id="page-subtitle">Monitor system status, gas levels, and run automation tasks.</p>
+        </div>
+
+        <div class="topbar-right">
+          <div class="status-chip">
+            <span class="status-dot green" id="rpc-status-dot"></span>
+            <span id="rpc-status-text">opBNB Connected</span>
+          </div>
+
+          <div class="network-selector-wrapper">
+            <select id="network-select" class="custom-select">
+              <option value="mainnet" selected>opBNB Mainnet (Chain 204)</option>
+              <option value="testnet">opBNB Testnet (Chain 5611)</option>
+            </select>
+          </div>
+
+          <button id="btn-refresh-all" class="btn btn-secondary btn-icon" title="Refresh Balances & Status">
+            <i class="fa-solid fa-rotate"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- TAB 1: DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon purple"><i class="fa-solid fa-wallet"></i></div>
+            <div class="stat-details">
+              <span class="stat-label">Total Wallets</span>
+              <h3 class="stat-value" id="dash-total-wallets">0</h3>
+              <span class="stat-sub font-mono" id="dash-smart-wallets">0 Smart Accounts</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fa-solid fa-coins"></i></div>
+            <div class="stat-details">
+              <span class="stat-label">Total opBNB Balance</span>
+              <h3 class="stat-value" id="dash-total-balance">0.0000 BNB</h3>
+              <span class="stat-sub" id="dash-funded-wallets">0/0 Wallets Funded</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon blue"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="stat-details">
+              <span class="stat-label">Tasks Completed</span>
+              <h3 class="stat-value" id="dash-completed-tx">0</h3>
+              <span class="stat-sub" id="dash-success-rate">100% Success Rate</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon amber"><i class="fa-solid fa-gas-pump"></i></div>
+            <div class="stat-details">
+              <span class="stat-label">opBNB Network Gas</span>
+              <h3 class="stat-value" id="dash-gas-price">0.00001 Gwei</h3>
+              <span class="stat-sub">Ultra low transaction fees</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions & Pipeline Summary -->
+        <div class="dashboard-sections">
+          <div class="panel grid-panel">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-bolt"></i> One-Time Sequential Automation Pipeline (30s Delay)</h3>
+              <span class="badge badge-info">Single Run Batch</span>
+            </div>
+            <div class="pipeline-flow">
+              <div class="pipe-step">
+                <div class="pipe-num">1</div>
+                <div class="pipe-text">
+                  <strong>Fund 1st Wallet</strong>
+                  <p>Send gas BNB to 1st Wallet</p>
+                </div>
+              </div>
+              <div class="pipe-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+              <div class="pipe-step">
+                <div class="pipe-num">2</div>
+                <div class="pipe-text">
+                  <strong>registerWithReferral</strong>
+                  <p>Ref Target: 0x22f6...c62a</p>
+                </div>
+              </div>
+              <div class="pipe-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+              <div class="pipe-step">
+                <div class="pipe-num">3</div>
+                <div class="pipe-text">
+                  <strong>Auto Sweep Balance</strong>
+                  <p>Pass BNB to Next Wallet</p>
+                </div>
+              </div>
+              <div class="pipe-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+              <div class="pipe-step">
+                <div class="pipe-num">4</div>
+                <div class="pipe-text">
+                  <strong>30s Delay & Finish</strong>
+                  <p>Stops automatically at last wallet</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-actions">
+              <button id="dash-btn-run-all" class="btn btn-primary btn-lg">
+                <i class="fa-solid fa-play"></i> Start Automation Range
+              </button>
+              <button id="dash-btn-gen-quick" class="btn btn-secondary">
+                <i class="fa-solid fa-plus"></i> Generate 5 Seed Wallets
+              </button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-circle-info"></i> Contract & Referral Setup</h3>
+            </div>
+            <div class="info-box">
+              <p><i class="fa-solid fa-lightbulb text-amber"></i> <strong>Range-Based Wallet Auto Task:</strong></p>
+              <p>Specify starting and ending wallet numbers (e.g., Wallet #1 to #10) to run auto task. Default interval delay is set to 30 seconds per wallet.</p>
+              <div class="contract-chip-preview mt-2">
+                <span>Referral Target Address:</span>
+                <code id="dash-ref-target-code">0x22f6e173ee638eac5ef235a750990e049b9cc62a</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: WALLET MANAGER -->
+      <section id="tab-wallets" class="tab-pane">
+        <div class="panel">
+          <div class="panel-header flex-between">
+            <div>
+              <h3><i class="fa-solid fa-wallet"></i> Seed Phrase (Mnemonic) HD Wallet Generator</h3>
+              <p class="panel-sub">Generate, append, or restore accounts using a 12-Word Secret Recovery Phrase like MetaMask.</p>
+            </div>
+            <div class="header-actions">
+              <button id="btn-export-keys" class="btn btn-secondary">
+                <i class="fa-solid fa-download"></i> Export Keys (JSON/CSV)
+              </button>
+              <button id="btn-import-keys-trigger" class="btn btn-secondary">
+                <i class="fa-solid fa-upload"></i> Import Keys
+              </button>
+              <input type="file" id="file-import-keys" accept=".json,.csv,.txt" style="display:none">
+              <button id="btn-clear-wallets" class="btn btn-danger-outline">
+                <i class="fa-solid fa-trash"></i> Clear All
+              </button>
+            </div>
+          </div>
+
+          <!-- Seed Phrase / Mnemonic Controls -->
+          <div class="seed-phrase-card">
+            <div class="seed-header flex-between mb-2">
+              <label for="mnemonic-input"><strong><i class="fa-solid fa-key text-purple"></i> Secret Recovery Phrase (12 Words)</strong></label>
+              <div class="seed-actions">
+                <button id="btn-new-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-rotate"></i> Generate New Seed</button>
+                <button id="btn-toggle-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-eye"></i> Show/Hide</button>
+                <button id="btn-copy-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-copy"></i> Copy Seed</button>
+              </div>
+            </div>
+            <textarea id="mnemonic-input" class="custom-input font-mono seed-textarea" rows="2" placeholder="Paste your 12-word seed phrase here or click 'Generate New Seed'..."></textarea>
+          </div>
+
+          <!-- Generation & Add Controls -->
+          <div class="wallet-gen-bar">
+            <div class="input-group">
+              <label for="gen-count">Number of Accounts</label>
+              <input type="number" id="gen-count" min="1" max="500" value="5" class="custom-input">
+            </div>
+
+            <div class="input-group checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="gen-smart-wallet" checked>
+                <span>Auto Derivation / Smart Wallet Mode</span>
+              </label>
+            </div>
+
+            <button id="btn-generate-wallets" class="btn btn-primary">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Derive / Restore Set
+            </button>
+
+            <button id="btn-add-more-wallets" class="btn btn-secondary">
+              <i class="fa-solid fa-plus"></i> + Add More Accounts
+            </button>
+
+            <button id="btn-add-manual-key" class="btn btn-secondary">
+              <i class="fa-solid fa-key"></i> + Add Private Key
+            </button>
+          </div>
+
+          <!-- Wallet List Table -->
+          <div class="table-responsive">
+            <table class="custom-table" id="wallet-table">
+              <thead>
+                <tr>
+                  <th width="40">#</th>
+                  <th>Path</th>
+                  <th>EOA Wallet Address</th>
+                  <th>Smart Wallet Address</th>
+                  <th>opBNB Balance</th>
+                  <th>Status</th>
+                  <th width="200">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="wallet-table-body">
+                <tr class="empty-row">
+                  <td colspan="7">
+                    <div class="empty-state">
+                      <i class="fa-solid fa-wallet-thin"></i>
+                      <p>No wallets derived yet. Enter a seed phrase and click "Derive / Restore Set" or "+ Add More Accounts" above.</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: AUTO TASK ENGINE -->
+      <section id="tab-automation" class="tab-pane">
+        <div class="automation-grid">
+          <!-- Automation Control Card -->
+          <div class="panel">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-gears"></i> Task Execution Modules</h3>
+              <span class="badge badge-success" id="auto-engine-status">Engine Ready</span>
+            </div>
+
+            <!-- WALLET RANGE SELECTOR -->
+            <div class="range-selector-card mb-3">
+              <h4 class="mb-2"><i class="fa-solid fa-list-ol text-purple"></i> Wallet Selection Range</h4>
+              <div class="range-inputs-grid">
+                <div class="input-group">
+                  <label for="exec-from-wallet">From Wallet #</label>
+                  <input type="number" id="exec-from-wallet" min="1" value="1" class="custom-input font-mono">
+                </div>
+                <div class="input-group">
+                  <label for="exec-to-wallet">To Wallet #</label>
+                  <input type="number" id="exec-to-wallet" min="1" value="5" class="custom-input font-mono">
+                </div>
+              </div>
+              <span class="field-help" id="range-summary-badge">Processing Wallets #1 to #5</span>
+            </div>
+
+            <div class="task-checklist">
+              <div class="task-check-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="task-enable-refer" checked>
+                  <div>
+                    <strong>1. Swarmbase registerWithReferral</strong>
+                    <p class="text-sub">Calls <code>registerWithReferral</code> on <code>0x01f9...be0c</code> using ref: <code>0x22f6...c62a</code>.</p>
+                  </div>
+                </label>
+              </div>
+
+              <div class="task-check-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="task-enable-sweep" checked>
+                  <div>
+                    <strong class="text-purple"><i class="fa-solid fa-arrow-right-arrow-left"></i> Auto-Sweep / Transfer Balance to Next Wallet</strong>
+                    <p class="text-sub">After task success, transfers max remaining BNB fee from Wallet #N to Wallet #N+1.</p>
+                  </div>
+                </label>
+              </div>
+
+              <hr style="border:0; border-top:1px dashed var(--border-color); margin:12px 0;">
+
+              <!-- SEPARATE INDEPENDENT MODULES -->
+              <div class="task-check-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="task-enable-mint">
+                  <div>
+                    <strong class="text-green"><i class="fa-solid fa-shapes"></i> Separate Module: Mint opBNB Contract NFT</strong>
+                    <p class="text-sub">Standalone NFT Mint transaction for active wallets.</p>
+                  </div>
+                </label>
+              </div>
+
+              <div class="task-check-item">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="task-enable-checkin">
+                  <div>
+                    <strong class="text-blue"><i class="fa-solid fa-calendar-check"></i> Separate Module: Daily Check-in / Claim Reward</strong>
+                    <p class="text-sub">Standalone daily check-in call for streak and points.</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="execution-options">
+              <div class="input-group">
+                <label for="exec-delay">Delay Between Wallets & Transfers (seconds)</label>
+                <input type="number" id="exec-delay" min="1" max="120" value="30" class="custom-input font-mono">
+              </div>
+              <span class="field-help"><i class="fa-solid fa-clock"></i> Default set to 30 seconds interval between wallet transactions.</span>
+            </div>
+
+            <div class="auto-action-bar">
+              <button id="btn-start-automation" class="btn btn-primary btn-block btn-lg">
+                <i class="fa-solid fa-play"></i> Start Automation Range
+              </button>
+              <button id="btn-stop-automation" class="btn btn-danger btn-block btn-lg" style="display:none">
+                <i class="fa-solid fa-stop"></i> Stop Automation Engine
+              </button>
+            </div>
+          </div>
+
+          <!-- Live Progress & Execution Monitor -->
+          <div class="panel">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-spinner"></i> Live Task Execution Progress</h3>
+            </div>
+
+            <div class="progress-container">
+              <div class="progress-label-bar">
+                <span id="prog-task-title">Idle</span>
+                <span id="prog-task-percent">0%</span>
+              </div>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="prog-bar-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <div class="execution-feed" id="exec-live-feed">
+              <div class="feed-placeholder">
+                <i class="fa-solid fa-play-circle"></i>
+                <p>Click "Start Automation Range" to begin processing wallets sequentially with 30s delay.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: CONTRACT & CONFIG MANAGER -->
+      <section id="tab-contracts" class="tab-pane">
+        <div class="panel">
+          <div class="panel-header flex-between">
+            <div>
+              <h3><i class="fa-solid fa-sliders"></i> Contract Addresses & Method Configuration</h3>
+              <p class="panel-sub">Add or customize smart contract addresses, method signatures, and referral targets.</p>
+            </div>
+            <button id="btn-save-config" class="btn btn-primary">
+              <i class="fa-solid fa-floppy-disk"></i> Save Contract Settings
+            </button>
+          </div>
+
+          <div class="config-sections-grid">
+            <!-- Referral Config -->
+            <div class="config-card">
+              <h4><i class="fa-solid fa-user-check text-purple"></i> Swarmbase Referral Contract Settings</h4>
+              
+              <div class="input-group">
+                <label for="cfg-ref-contract">Swarmbase Contract Address</label>
+                <input type="text" id="cfg-ref-contract" value="0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c" class="custom-input font-mono">
+                <span class="field-help">opBNB Scan Contract: 0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c</span>
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-ref-target">Referral Target Address (refer add)</label>
+                <input type="text" id="cfg-ref-target" value="0x22f6e173ee638eac5ef235a750990e049b9cc62a" class="custom-input font-mono">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-ref-method">Method Signature</label>
+                <input type="text" id="cfg-ref-method" value="registerWithReferral(address)" class="custom-input font-mono">
+                <span class="field-help">Try <code>registerWithReferral(address)</code> or <code>registerWithReferral(string,address)</code></span>
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-ref-input">String Input Parameter (input)</label>
+                <input type="text" id="cfg-ref-input" value="" class="custom-input font-mono" placeholder="Optional text or leave blank">
+              </div>
+            </div>
+
+            <!-- NFT Mint Config -->
+            <div class="config-card">
+              <h4><i class="fa-solid fa-shapes text-green"></i> NFT Mint Contract Settings</h4>
+              
+              <div class="input-group">
+                <label for="cfg-nft-contract">NFT Mint Contract Address</label>
+                <input type="text" id="cfg-nft-contract" value="0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c" class="custom-input font-mono" placeholder="0x...">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-nft-method">Mint Method Signature</label>
+                <input type="text" id="cfg-nft-method" value="mint()" class="custom-input font-mono">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-nft-value">Mint Fee (BNB)</label>
+                <input type="text" id="cfg-nft-value" value="0" class="custom-input font-mono">
+              </div>
+            </div>
+
+            <!-- Daily Check-in Config -->
+            <div class="config-card">
+              <h4><i class="fa-solid fa-calendar-check text-blue"></i> Daily Check-in Contract Settings</h4>
+              
+              <div class="input-group">
+                <label for="cfg-checkin-contract">Daily Check-in Contract Address</label>
+                <input type="text" id="cfg-checkin-contract" value="0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c" class="custom-input font-mono" placeholder="0x...">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-checkin-method">Check-in Method Signature</label>
+                <input type="text" id="cfg-checkin-method" value="checkIn()" class="custom-input font-mono">
+              </div>
+            </div>
+
+            <!-- Network & RPC Config -->
+            <div class="config-card">
+              <h4><i class="fa-solid fa-network-wired text-amber"></i> Network & RPC Endpoints</h4>
+              
+              <div class="input-group">
+                <label for="cfg-rpc-url">opBNB RPC Endpoint</label>
+                <input type="text" id="cfg-rpc-url" value="https://opbnb-mainnet-rpc.bnbchain.org" class="custom-input font-mono">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-chain-id">Chain ID</label>
+                <input type="text" id="cfg-chain-id" value="204" class="custom-input font-mono">
+              </div>
+
+              <div class="input-group">
+                <label for="cfg-explorer-url">Block Explorer URL</label>
+                <input type="text" id="cfg-explorer-url" value="https://opbnbscan.com" class="custom-input font-mono">
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: LIVE LOGS & EXPLORER -->
+      <section id="tab-logs" class="tab-pane">
+        <div class="panel">
+          <div class="panel-header flex-between">
+            <div>
+              <h3><i class="fa-solid fa-terminal"></i> Console Logs & Transaction History</h3>
+              <p class="panel-sub">Real-time log outputs with direct links to opBNB Explorer.</p>
+            </div>
+            <div class="header-actions">
+              <button id="btn-clear-logs" class="btn btn-secondary">
+                <i class="fa-solid fa-eraser"></i> Clear Logs
+              </button>
+              <button id="btn-export-logs" class="btn btn-secondary">
+                <i class="fa-solid fa-file-export"></i> Export Logs
+              </button>
+            </div>
+          </div>
+
+          <div class="console-box" id="console-logs-container">
+            <div class="console-row info">
+              <span class="log-time">[00:00:00]</span>
+              <span class="log-tag tag-info">SYSTEM</span>
+              <span class="log-msg">Unlimited wallet addition engine enabled. You can append or derive 10, 50, 100+ wallets.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MANUAL TRANSFER / WITHDRAW MODAL -->
+  <div class="modal-overlay" id="transfer-modal">
+    <div class="modal-card">
+      <div class="modal-header flex-between">
+        <h3><i class="fa-solid fa-paper-plane text-purple"></i> Manual Transfer / Withdraw BNB</h3>
+        <button class="btn-close-modal" id="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="input-group mb-3">
+          <label>From Wallet Address</label>
+          <input type="text" id="modal-from-addr" class="custom-input font-mono" readonly>
+          <span class="field-help" id="modal-from-balance">Current Balance: 0.0000 BNB</span>
+        </div>
+
+        <div class="input-group mb-3">
+          <label for="modal-to-addr">Recipient Address (To)</label>
+          <input type="text" id="modal-to-addr" class="custom-input font-mono" placeholder="0x...">
+        </div>
+
+        <div class="input-group mb-3">
+          <div class="flex-between mb-1">
+            <label for="modal-amount">Amount (opBNB BNB)</label>
+            <button id="modal-btn-max" class="btn btn-secondary btn-sm">MAX</button>
+          </div>
+          <input type="text" id="modal-amount" class="custom-input font-mono" placeholder="0.001">
+        </div>
+      </div>
+
+      <div class="modal-footer flex-between">
+        <button id="modal-btn-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="modal-btn-send" class="btn btn-primary">
+          <i class="fa-solid fa-paper-plane"></i> Send Transaction Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MANUAL PRIVATE KEY ADD MODAL -->
+  <div class="modal-overlay" id="pkey-modal">
+    <div class="modal-card">
+      <div class="modal-header flex-between">
+        <h3><i class="fa-solid fa-key text-purple"></i> Add Custom Private Key</h3>
+        <button class="btn-close-modal" id="pkey-modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="input-group mb-3">
+          <label for="pkey-modal-input">Private Key (Hex)</label>
+          <input type="password" id="pkey-modal-input" class="custom-input font-mono" placeholder="0x... or 64 char hex string">
+          <span class="field-help">Add an existing private key to your active wallet list.</span>
+        </div>
+      </div>
+
+      <div class="modal-footer flex-between">
+        <button id="pkey-modal-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="pkey-modal-add" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i> Add Account
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- JavaScript -->
+  <script src="app.js"></script>
+</body>
+</html>
