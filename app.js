@@ -1,5 +1,5 @@
 /**
- * opBNB AutoTX & Referral Automation Bot
+ * opBNB Network Web3 Dashboard Engine
  * Core Web3 Engine using Ethers.js v6 with Web Worker Background Execution
  */
 
