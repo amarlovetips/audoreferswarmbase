@@ -47,6 +47,9 @@ let state = {
   config: { ...DEFAULT_CONFIG },
   logs: [],
   provider: null,
+  browserProvider: null,
+  browserSigner: null,
+  browserAddress: null,
   isExecuting: false,
   completedTxCount: 0,
   selectedTransferWallet: null,
@@ -104,7 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.balancePollTimer) clearInterval(state.balancePollTimer);
   state.balancePollTimer = setInterval(refreshAllBalances, 5000);
 
-  addLog('SYSTEM', 'mintPioneer() Pioneer NFT minting engine active.', 'info');
+  addLog('SYSTEM', 'Direct NFT Minter for Pioneer, Builder, and OG NFTs initialized.', 'info');
 });
 
 // Load Data from LocalStorage
@@ -231,6 +234,7 @@ function setupNavigation() {
       const titles = {
         dashboard: ['Dashboard Overview', 'Monitor system status, gas levels, and run automation tasks.'],
         wallets: ['Wallet Manager', 'Generate, restore, deposit or withdraw from HD accounts.'],
+        'direct-mint': ['Direct NFT Minter', 'Connect Rabby Wallet to mint Pioneer, Builder, and OG NFTs directly — bypassing website requirements!'],
         automation: ['Auto Task Engine', 'Run range-based tasks with configurable delay & auto-sweep.'],
         contracts: ['Contract Settings', 'Customize target contract addresses, method signatures, and referral link.'],
         logs: ['Console Logs & History', 'Inspect live transaction outputs and opBNBScan explorer links.']
@@ -338,6 +342,12 @@ function setupEventListeners() {
     }
   });
 
+  // RABBY / BROWSER WALLET CONNECT & MINT BUTTONS
+  document.getElementById('btn-connect-rabby').addEventListener('click', connectRabbyWallet);
+  document.getElementById('btn-mint-rabby-pioneer').addEventListener('click', () => mintRabbyNFT('mintPioneer()', 'Pioneer NFT'));
+  document.getElementById('btn-mint-rabby-builder').addEventListener('click', () => mintRabbyNFT('mintBuilder()', 'Builder NFT'));
+  document.getElementById('btn-mint-rabby-og').addEventListener('click', () => mintRabbyNFT('mintOG()', 'OG NFT'));
+
   document.getElementById('btn-start-automation').addEventListener('click', startAutomationPipeline);
   document.getElementById('btn-stop-automation').addEventListener('click', stopAutomationPipeline);
   document.getElementById('btn-save-config').addEventListener('click', saveContractConfig);
@@ -375,6 +385,102 @@ function setupEventListeners() {
 function switchTab(tabName) {
   const btn = document.querySelector(`.nav-item[data-tab="${tabName}"]`);
   if (btn) btn.click();
+}
+
+// Connect Rabby / MetaMask Browser Wallet
+async function connectRabbyWallet() {
+  if (typeof window.ethereum === 'undefined') {
+    showToast('No Web3 wallet (Rabby Wallet / MetaMask) detected in browser!', 'error');
+    return;
+  }
+
+  try {
+    state.browserProvider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await state.browserProvider.send("eth_requestAccounts", []);
+
+    if (!accounts || accounts.length === 0) {
+      showToast('No accounts returned from wallet.', 'error');
+      return;
+    }
+
+    state.browserSigner = await state.browserProvider.getSigner();
+    state.browserAddress = await state.browserSigner.getAddress();
+
+    // Check Network Chain ID
+    const network = await state.browserProvider.getNetwork();
+    if (network.chainId !== 204n) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0xCC' }], // 204 in hex
+        });
+      } catch (switchError) {
+        if (switchError.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0xCC',
+              chainName: 'opBNB Mainnet',
+              rpcUrls: ['https://opbnb-mainnet-rpc.bnbchain.org'],
+              nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+              blockExplorerUrls: ['https://opbnbscan.com']
+            }]
+          });
+        }
+      }
+    }
+
+    const balWei = await state.browserProvider.getBalance(state.browserAddress);
+    const balEth = parseFloat(ethers.formatEther(balWei)).toFixed(6);
+
+    document.getElementById('rabby-connected-addr').innerText = shortenAddress(state.browserAddress);
+    document.getElementById('rabby-connected-balance').innerText = `${balEth} BNB`;
+
+    showToast(`Wallet connected: ${shortenAddress(state.browserAddress)}`, 'success');
+    addLog('RABBY', `Connected browser wallet: ${state.browserAddress}`, 'success');
+  } catch (err) {
+    console.error('Wallet connection error:', err);
+    showToast(`Wallet connect failed: ${err.message}`, 'error');
+  }
+}
+
+// Mint NFT directly using Connected Browser Wallet (Rabby Wallet / MetaMask)
+async function mintRabbyNFT(methodSig, nftName) {
+  if (!state.browserSigner) {
+    await connectRabbyWallet();
+    if (!state.browserSigner) return;
+  }
+
+  const contractAddr = state.config.nftContract.trim() || '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627';
+  const currentNet = NETWORKS[state.config.selectedNetwork] || NETWORKS.mainnet;
+
+  try {
+    showToast(`Broadcasting ${nftName} Mint (${methodSig})...`, 'info');
+
+    const iface = new ethers.Interface([`function ${methodSig}`]);
+    const funcName = methodSig.split('(')[0];
+    const calldata = iface.encodeFunctionData(funcName, []);
+
+    const tx = await state.browserSigner.sendTransaction({
+      to: contractAddr,
+      data: calldata
+    });
+
+    showToast(`Transaction sent! Waiting confirmation...`, 'info');
+    await tx.wait(1);
+
+    state.completedTxCount++;
+    saveState();
+    updateUI();
+
+    const txHash = tx.hash;
+    showToast(`🎉 ${nftName} Minted Successfully!`, 'success');
+    addLog('TX', `✅ Connected Wallet Minted ${nftName}! Hash: <a href="${currentNet.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
+  } catch (err) {
+    console.error(`Mint error for ${nftName}:`, err);
+    showToast(`Mint failed: ${err.reason || err.message}`, 'error');
+    addLog('ERROR', `${nftName} Mint failed: ${err.message}`, 'error');
+  }
 }
 
 // Generate New 12-Word Seed Phrase
@@ -846,7 +952,9 @@ async function startAutomationPipeline() {
 
   const enableRefer = document.getElementById('task-enable-refer').checked;
   const enableSweep = document.getElementById('task-enable-sweep').checked;
-  const enableMint = document.getElementById('task-enable-mint').checked;
+  const enableMintPioneer = document.getElementById('task-enable-mint').checked;
+  const enableMintBuilder = document.getElementById('task-enable-builder')?.checked || false;
+  const enableMintOG = document.getElementById('task-enable-og')?.checked || false;
   const enableCheckin = document.getElementById('task-enable-checkin').checked;
   const delaySec = parseInt(document.getElementById('exec-delay').value, 10) || 30;
 
@@ -891,16 +999,25 @@ async function startAutomationPipeline() {
         await executeReferralRegister(signer, currentNet);
       }
 
-      // Optional Module 2: Smart Dynamic Pioneer NFT Mint (0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627)
-      if (enableMint && state.isExecuting) {
-        appendFeedItem(feed, `➡️ Minting Pioneer NFT (mintPioneer) on ${shortenAddress(state.config.nftContract)}...`, 'info');
-        const mintResult = await executeNFTMint(signer, currentNet);
-        if (!mintResult) {
-          appendFeedItem(feed, `⚠️ NFT Mint call reverted on ${shortenAddress(state.config.nftContract)}. Check contract method or requirements in Settings tab.`, 'error');
-        }
+      // Optional Module 2A: Pioneer NFT Mint (mintPioneer)
+      if (enableMintPioneer && state.isExecuting) {
+        appendFeedItem(feed, `➡️ Minting Pioneer NFT (mintPioneer)...`, 'info');
+        await executeSpecificNFTMint(signer, 'mintPioneer()', 'Pioneer NFT', currentNet);
       }
 
-      // Optional Module 3: Daily Check-in with Fallback Signatures (hiveCheckIn)
+      // Optional Module 2B: Builder NFT Mint (mintBuilder - Point Bypass)
+      if (enableMintBuilder && state.isExecuting) {
+        appendFeedItem(feed, `➡️ Minting Builder NFT (mintBuilder - 1,000 pts Bypass)...`, 'info');
+        await executeSpecificNFTMint(signer, 'mintBuilder()', 'Builder NFT', currentNet);
+      }
+
+      // Optional Module 2C: OG NFT Mint (mintOG - 5,000 pts & 14-day Bypass)
+      if (enableMintOG && state.isExecuting) {
+        appendFeedItem(feed, `➡️ Minting OG NFT (mintOG - 5,000 pts & 14-day Bypass)...`, 'info');
+        await executeSpecificNFTMint(signer, 'mintOG()', 'OG NFT', currentNet);
+      }
+
+      // Optional Module 3: Daily Check-in (hiveCheckIn)
       if (enableCheckin && state.isExecuting) {
         appendFeedItem(feed, `➡️ Executing Daily Check-in (hiveCheckIn)...`, 'info');
         const checkinResult = await executeDailyCheckin(signer, currentNet);
@@ -1063,90 +1180,40 @@ async function executeReferralRegister(signer, network) {
   }
 }
 
-// Step 2 Execution: Smart Dynamic NFT Mint Call (Target Contract: 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627, Method: mintPioneer)
-async function executeNFTMint(signer, network) {
+// Step 2 Execution: Specific NFT Mint Call (Target Contract: 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627)
+async function executeSpecificNFTMint(signer, methodSig, nftName, network) {
   const contractAddr = state.config.nftContract.trim() || '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627';
-  const configuredMethod = state.config.nftMethod.trim() || 'mintPioneer()';
-  const valueWei = ethers.parseEther(state.config.nftValue || '0');
 
-  // Direct Raw Hex Calldata Check (e.g., 0x12345678)
-  if (configuredMethod.startsWith('0x')) {
-    try {
-      const tx = await signer.sendTransaction({
-        to: contractAddr,
-        data: configuredMethod,
-        value: valueWei
-      });
-      await tx.wait(1);
-      state.completedTxCount++;
-      saveState();
-      updateUI();
-      const txHash = tx.hash;
-      addLog('TX', `✅ Pioneer NFT Minted via Raw Hex! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
-      showToast('Pioneer NFT Minted successfully!', 'success');
-      return true;
-    } catch (err) {
-      addLog('ERROR', `Raw Hex NFT Mint failed: ${err.message}`, 'error');
-      return false;
-    }
+  try {
+    const iface = new ethers.Interface([`function ${methodSig}`]);
+    const funcName = methodSig.split('(')[0];
+    const calldata = iface.encodeFunctionData(funcName, []);
+
+    const tx = await signer.sendTransaction({
+      to: contractAddr,
+      data: calldata
+    });
+
+    await tx.wait(1);
+
+    state.completedTxCount++;
+    saveState();
+    updateUI();
+
+    const txHash = tx.hash;
+    addLog('TX', `✅ ${nftName} Minted (${methodSig})! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
+    showToast(`${nftName} Minted successfully!`, 'success');
+    return true;
+  } catch (err) {
+    console.warn(`Mint ${nftName} failed: ${err.message}`);
+    addLog('ERROR', `${nftName} Mint failed: ${err.message}`, 'error');
+    return false;
   }
+}
 
-  const candidateSignatures = [
-    configuredMethod,
-    'mintPioneer()',
-    'mintPioneer(address)',
-    'mint()',
-    'mint(address)',
-    'safeMint(address)',
-    'mintNFT()',
-    'publicMint()',
-    'claim()'
-  ];
-
-  const methodList = [...new Set(candidateSignatures)];
-
-  for (let methodSig of methodList) {
-    try {
-      const iface = new ethers.Interface([`function ${methodSig}`]);
-      const funcName = methodSig.split('(')[0];
-      const funcObj = iface.getFunction(funcName);
-
-      let calldata;
-      if (funcObj.inputs.length === 1) {
-        if (funcObj.inputs[0].type === 'address') {
-          calldata = iface.encodeFunctionData(funcName, [signer.address]);
-        } else if (funcObj.inputs[0].type.includes('int')) {
-          calldata = iface.encodeFunctionData(funcName, [1]);
-        } else {
-          calldata = iface.encodeFunctionData(funcName, [signer.address]);
-        }
-      } else {
-        calldata = iface.encodeFunctionData(funcName, []);
-      }
-
-      const tx = await signer.sendTransaction({
-        to: contractAddr,
-        data: calldata,
-        value: valueWei
-      });
-
-      await tx.wait(1);
-
-      state.completedTxCount++;
-      saveState();
-      updateUI();
-
-      const txHash = tx.hash;
-      addLog('TX', `✅ Pioneer NFT Minted (${methodSig})! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
-      showToast('Pioneer NFT Minted successfully!', 'success');
-      return true;
-    } catch (err) {
-      console.warn(`Mint method ${methodSig} failed, trying next candidate...`, err.message);
-    }
-  }
-
-  addLog('ERROR', `Pioneer NFT Minting failed on contract ${shortenAddress(contractAddr)}. Check NFT Contract Address & Method in Contract Settings tab.`, 'error');
-  return false;
+// Legacy Dynamic NFT Mint Helper
+async function executeNFTMint(signer, network) {
+  return await executeSpecificNFTMint(signer, state.config.nftMethod || 'mintPioneer()', 'Pioneer NFT', network);
 }
 
 // Step 3 Execution: Swarmbase Daily Check-in Call (hiveCheckIn)
