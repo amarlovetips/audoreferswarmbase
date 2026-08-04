@@ -33,7 +33,7 @@ const DEFAULT_CONFIG = {
   refMethod: 'registerWithReferral(address)',
   refInputParam: '',
   nftContract: '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627',
-  nftMethod: 'mint()',
+  nftMethod: 'mintPioneer()',
   nftValue: '0',
   checkinContract: '0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c',
   checkinMethod: 'hiveCheckIn()',
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.balancePollTimer) clearInterval(state.balancePollTimer);
   state.balancePollTimer = setInterval(refreshAllBalances, 5000);
 
-  addLog('SYSTEM', 'NFT Contract 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627 active for minting.', 'info');
+  addLog('SYSTEM', 'mintPioneer() Pioneer NFT minting engine active.', 'info');
 });
 
 // Load Data from LocalStorage
@@ -891,9 +891,9 @@ async function startAutomationPipeline() {
         await executeReferralRegister(signer, currentNet);
       }
 
-      // Optional Module 2: Smart Dynamic NFT Mint (0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627)
+      // Optional Module 2: Smart Dynamic Pioneer NFT Mint (0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627)
       if (enableMint && state.isExecuting) {
-        appendFeedItem(feed, `➡️ Minting NFT on contract ${shortenAddress(state.config.nftContract)}...`, 'info');
+        appendFeedItem(feed, `➡️ Minting Pioneer NFT (mintPioneer) on ${shortenAddress(state.config.nftContract)}...`, 'info');
         const mintResult = await executeNFTMint(signer, currentNet);
         if (!mintResult) {
           appendFeedItem(feed, `⚠️ NFT Mint call reverted on ${shortenAddress(state.config.nftContract)}. Check contract method or requirements in Settings tab.`, 'error');
@@ -1063,10 +1063,10 @@ async function executeReferralRegister(signer, network) {
   }
 }
 
-// Step 2 Execution: Smart Dynamic NFT Mint Call with Target Contract 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627
+// Step 2 Execution: Smart Dynamic NFT Mint Call (Target Contract: 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627, Method: mintPioneer)
 async function executeNFTMint(signer, network) {
   const contractAddr = state.config.nftContract.trim() || '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627';
-  const configuredMethod = state.config.nftMethod.trim();
+  const configuredMethod = state.config.nftMethod.trim() || 'mintPioneer()';
   const valueWei = ethers.parseEther(state.config.nftValue || '0');
 
   // Direct Raw Hex Calldata Check (e.g., 0x12345678)
@@ -1082,8 +1082,8 @@ async function executeNFTMint(signer, network) {
       saveState();
       updateUI();
       const txHash = tx.hash;
-      addLog('TX', `✅ NFT Minted via Raw Hex! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
-      showToast('NFT Minted successfully!', 'success');
+      addLog('TX', `✅ Pioneer NFT Minted via Raw Hex! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
+      showToast('Pioneer NFT Minted successfully!', 'success');
       return true;
     } catch (err) {
       addLog('ERROR', `Raw Hex NFT Mint failed: ${err.message}`, 'error');
@@ -1093,6 +1093,8 @@ async function executeNFTMint(signer, network) {
 
   const candidateSignatures = [
     configuredMethod,
+    'mintPioneer()',
+    'mintPioneer(address)',
     'mint()',
     'mint(address)',
     'safeMint(address)',
@@ -1135,15 +1137,15 @@ async function executeNFTMint(signer, network) {
       updateUI();
 
       const txHash = tx.hash;
-      addLog('TX', `✅ NFT Minted (${methodSig})! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
-      showToast('NFT Minted successfully!', 'success');
+      addLog('TX', `✅ Pioneer NFT Minted (${methodSig})! Hash: <a href="${network.explorer}/tx/${txHash}" target="_blank" class="tx-link">${shortenAddress(txHash)}</a>`, 'tx');
+      showToast('Pioneer NFT Minted successfully!', 'success');
       return true;
     } catch (err) {
       console.warn(`Mint method ${methodSig} failed, trying next candidate...`, err.message);
     }
   }
 
-  addLog('ERROR', `NFT Minting failed on contract ${shortenAddress(contractAddr)}. Check NFT Contract Address & Method in Contract Settings tab.`, 'error');
+  addLog('ERROR', `Pioneer NFT Minting failed on contract ${shortenAddress(contractAddr)}. Check NFT Contract Address & Method in Contract Settings tab.`, 'error');
   return false;
 }
 

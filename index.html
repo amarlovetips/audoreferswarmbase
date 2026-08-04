@@ -345,8 +345,8 @@
                 <label class="checkbox-label">
                   <input type="checkbox" id="task-enable-mint">
                   <div>
-                    <strong class="text-green"><i class="fa-solid fa-shapes"></i> Separate Module: Mint opBNB Contract NFT</strong>
-                    <p class="text-sub">Target NFT Contract: <code>0x6f7c...6627</code>.</p>
+                    <strong class="text-green"><i class="fa-solid fa-shapes"></i> Separate Module: Mint Pioneer NFT (mintPioneer)</strong>
+                    <p class="text-sub">Mints Pioneer NFT on <code>0x6f7c...6627</code> via <code>mintPioneer()</code>.</p>
                   </div>
                 </label>
               </div>
@@ -459,7 +459,8 @@
 
               <div class="input-group">
                 <label for="cfg-nft-method">Mint Method Signature</label>
-                <input type="text" id="cfg-nft-method" value="mint()" class="custom-input font-mono">
+                <input type="text" id="cfg-nft-method" value="mintPioneer()" class="custom-input font-mono">
+                <span class="field-help">Set to <code>mintPioneer()</code> for Pioneer NFT</span>
               </div>
 
               <div class="input-group">
@@ -529,7 +530,7 @@
             <div class="console-row info">
               <span class="log-time">[00:00:00]</span>
               <span class="log-tag tag-info">SYSTEM</span>
-              <span class="log-msg">NFT Contract target updated to 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627.</span>
+              <span class="log-msg">mintPioneer() method configured for Pioneer NFT minting.</span>
             </div>
           </div>
         </div>
