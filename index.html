@@ -6,9 +6,9 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>opBNB AutoTX & Referral Automation Bot</title>
-  <meta name="description" content="Automated Web3 Transaction Bot on opBNB Chain for Wallet Creation, Smart Wallet generation, Referral Registration, NFT Minting (Pioneer, Builder, OG), and Daily Check-ins.">
-  <link rel="stylesheet" href="style.css?v=4.0">
+  <title>opBNB Network Web3 Utility Dashboard</title>
+  <meta name="description" content="Client-side Web3 utility dashboard for opBNB Network account management and smart contract interaction. 100% local browser execution.">
+  <link rel="stylesheet" href="style.css?v=5.0">
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,7 +27,7 @@
           <i class="fa-solid fa-bolt-lightning"></i>
         </div>
         <div class="brand-text">
-          <h2>opBNB AutoTX</h2>
+          <h2>opBNB Dashboard</h2>
           <span class="badge badge-network" id="sidebar-net-badge">opBNB Mainnet</span>
         </div>
       </div>
@@ -102,6 +102,12 @@
 
       <!-- TAB 1: DASHBOARD -->
       <section id="tab-dashboard" class="tab-pane active">
+        <!-- Security Compliance Notice -->
+        <div class="info-box mb-4" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25);">
+          <p class="text-green"><i class="fa-solid fa-shield-halved"></i> <strong>Client-Side Security Guarantee:</strong></p>
+          <p class="text-sub">This application is 100% open-source and executes entirely within your browser. All private keys and seeds remain local in your browser session and are never transmitted to any server.</p>
+        </div>
+
         <!-- Stats Grid -->
         <div class="stats-grid">
           <div class="stat-card">
@@ -213,8 +219,8 @@
         <div class="panel">
           <div class="panel-header flex-between">
             <div>
-              <h3><i class="fa-solid fa-wallet"></i> Seed Phrase (Mnemonic) HD Wallet Generator</h3>
-              <p class="panel-sub">Generate, append, or restore accounts using a 12-Word Secret Recovery Phrase like MetaMask.</p>
+              <h3><i class="fa-solid fa-wallet"></i> HD Account Generator & Keys Manager</h3>
+              <p class="panel-sub">Generate, append, or restore accounts using a 12-Word Mnemonic Phrase (BIP39 HD Standard).</p>
             </div>
             <div class="header-actions">
               <button id="btn-export-keys" class="btn btn-secondary">
@@ -230,17 +236,17 @@
             </div>
           </div>
 
-          <!-- Seed Phrase / Mnemonic Controls -->
+          <!-- Mnemonic Controls -->
           <div class="seed-phrase-card">
             <div class="seed-header flex-between mb-2">
-              <label for="mnemonic-input"><strong><i class="fa-solid fa-key text-purple"></i> Secret Recovery Phrase (12 Words)</strong></label>
+              <label for="mnemonic-input"><strong><i class="fa-solid fa-key text-purple"></i> HD Account Mnemonic Phrase (12 Words)</strong></label>
               <div class="seed-actions">
-                <button id="btn-new-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-rotate"></i> Generate New Seed</button>
+                <button id="btn-new-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-rotate"></i> Generate Mnemonic</button>
                 <button id="btn-toggle-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-eye"></i> Show/Hide</button>
-                <button id="btn-copy-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-copy"></i> Copy Seed</button>
+                <button id="btn-copy-seed" class="btn btn-secondary btn-sm"><i class="fa-solid fa-copy"></i> Copy Mnemonic</button>
               </div>
             </div>
-            <textarea id="mnemonic-input" class="custom-input font-mono seed-textarea" rows="2" placeholder="Paste your 12-word seed phrase here or click 'Generate New Seed'..."></textarea>
+            <textarea id="mnemonic-input" class="custom-input font-mono seed-textarea" rows="2" placeholder="Enter 12-word recovery mnemonic phrase..."></textarea>
           </div>
 
           <!-- Generation & Add Controls -->
@@ -289,7 +295,7 @@
                   <td colspan="7">
                     <div class="empty-state">
                       <i class="fa-solid fa-wallet-thin"></i>
-                      <p>No wallets derived yet. Enter a seed phrase and click "Derive / Restore Set" or "+ Add More Accounts" above.</p>
+                      <p>No wallets derived yet. Enter a mnemonic phrase and click "Derive / Restore Set" or "+ Add More Accounts" above.</p>
                     </div>
                   </td>
                 </tr>
@@ -725,6 +731,6 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- JavaScript with Cache Buster -->
-  <script src="app.js?v=4.0"></script>
+  <script src="app.js?v=5.0"></script>
 </body>
 </html>
