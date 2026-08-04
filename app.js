@@ -387,36 +387,42 @@ function switchTab(tabName) {
   if (btn) btn.click();
 }
 
-// Connect Rabby / MetaMask Browser Wallet
+// Connect Rabby / MetaMask Browser Wallet (Multi-Provider Support)
 async function connectRabbyWallet() {
-  if (typeof window.ethereum === 'undefined') {
-    showToast('No Web3 wallet (Rabby Wallet / MetaMask) detected in browser!', 'error');
+  const web3Provider = window.rabby || window.ethereum;
+
+  if (typeof web3Provider === 'undefined') {
+    showToast('No Rabby Wallet or MetaMask extension detected in your browser!', 'error');
+    addLog('RABBY', 'No Rabby Wallet / MetaMask extension found in window object.', 'error');
     return;
   }
 
   try {
-    state.browserProvider = new ethers.BrowserProvider(window.ethereum);
-    const accounts = await state.browserProvider.send("eth_requestAccounts", []);
+    showToast('Connecting to Rabby / Web3 Wallet...', 'info');
+
+    state.browserProvider = new ethers.BrowserProvider(web3Provider);
+    
+    // Request accounts from provider
+    const accounts = await web3Provider.request({ method: 'eth_requestAccounts' });
 
     if (!accounts || accounts.length === 0) {
-      showToast('No accounts returned from wallet.', 'error');
+      showToast('No accounts selected in wallet.', 'error');
       return;
     }
 
     state.browserSigner = await state.browserProvider.getSigner();
     state.browserAddress = await state.browserSigner.getAddress();
 
-    // Check Network Chain ID
-    const network = await state.browserProvider.getNetwork();
-    if (network.chainId !== 204n) {
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0xCC' }], // 204 in hex
-        });
-      } catch (switchError) {
-        if (switchError.code === 4902) {
-          await window.ethereum.request({
+    // Try switching network to opBNB (Chain 204)
+    try {
+      await web3Provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0xCC' }], // 204 in hex
+      });
+    } catch (netErr) {
+      if (netErr.code === 4902) {
+        try {
+          await web3Provider.request({
             method: 'wallet_addEthereumChain',
             params: [{
               chainId: '0xCC',
@@ -426,6 +432,8 @@ async function connectRabbyWallet() {
               blockExplorerUrls: ['https://opbnbscan.com']
             }]
           });
+        } catch (addErr) {
+          console.warn('Chain add warning:', addErr);
         }
       }
     }
@@ -436,11 +444,17 @@ async function connectRabbyWallet() {
     document.getElementById('rabby-connected-addr').innerText = shortenAddress(state.browserAddress);
     document.getElementById('rabby-connected-balance').innerText = `${balEth} BNB`;
 
-    showToast(`Wallet connected: ${shortenAddress(state.browserAddress)}`, 'success');
-    addLog('RABBY', `Connected browser wallet: ${state.browserAddress}`, 'success');
+    const connBtn = document.getElementById('btn-connect-rabby');
+    if (connBtn) {
+      connBtn.className = 'btn btn-secondary';
+      connBtn.innerHTML = `<i class="fa-solid fa-circle-check text-green"></i> Connected: ${shortenAddress(state.browserAddress)}`;
+    }
+
+    showToast(`Wallet connected: ${shortenAddress(state.browserAddress)}!`, 'success');
+    addLog('RABBY', `Connected browser wallet: ${state.browserAddress} (${balEth} BNB)`, 'success');
   } catch (err) {
     console.error('Wallet connection error:', err);
-    showToast(`Wallet connect failed: ${err.message}`, 'error');
+    showToast(`Wallet connect error: ${err.message || 'User rejected request'}`, 'error');
   }
 }
 
