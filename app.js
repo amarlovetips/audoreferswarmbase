@@ -32,7 +32,7 @@ const DEFAULT_CONFIG = {
   refContract: '0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c',
   refMethod: 'registerWithReferral(address)',
   refInputParam: '',
-  nftContract: '0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c',
+  nftContract: '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627',
   nftMethod: 'mint()',
   nftValue: '0',
   checkinContract: '0x01f9eb284f94b54cf0854ef3b6fef69c10babe0c',
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.balancePollTimer) clearInterval(state.balancePollTimer);
   state.balancePollTimer = setInterval(refreshAllBalances, 5000);
 
-  addLog('SYSTEM', 'Swarmbase hiveCheckIn() Daily Check-in engine ready.', 'info');
+  addLog('SYSTEM', 'NFT Contract 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627 active for minting.', 'info');
 });
 
 // Load Data from LocalStorage
@@ -891,12 +891,12 @@ async function startAutomationPipeline() {
         await executeReferralRegister(signer, currentNet);
       }
 
-      // Optional Module 2: Smart Dynamic NFT Mint
+      // Optional Module 2: Smart Dynamic NFT Mint (0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627)
       if (enableMint && state.isExecuting) {
         appendFeedItem(feed, `➡️ Minting NFT on contract ${shortenAddress(state.config.nftContract)}...`, 'info');
         const mintResult = await executeNFTMint(signer, currentNet);
         if (!mintResult) {
-          appendFeedItem(feed, `⚠️ NFT Mint call reverted on ${shortenAddress(state.config.nftContract)}. Set NFT contract address in Contract Settings tab.`, 'error');
+          appendFeedItem(feed, `⚠️ NFT Mint call reverted on ${shortenAddress(state.config.nftContract)}. Check contract method or requirements in Settings tab.`, 'error');
         }
       }
 
@@ -1063,9 +1063,9 @@ async function executeReferralRegister(signer, network) {
   }
 }
 
-// Step 2 Execution: Smart Dynamic NFT Mint Call with Raw Data Fallback
+// Step 2 Execution: Smart Dynamic NFT Mint Call with Target Contract 0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627
 async function executeNFTMint(signer, network) {
-  const contractAddr = state.config.nftContract.trim();
+  const contractAddr = state.config.nftContract.trim() || '0x6f7cb024e5b285a9e7ee1b9d31e864e9d2b36627';
   const configuredMethod = state.config.nftMethod.trim();
   const valueWei = ethers.parseEther(state.config.nftValue || '0');
 
